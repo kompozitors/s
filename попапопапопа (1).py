@@ -12,6 +12,7 @@ import threading
 from threading import Lock, Event
 from collections import defaultdict, deque
 import signal
+import html
 
 from telebot.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -164,12 +165,35 @@ def normalize_type_value(value: Any) -> Optional[str]:
     value_str = str(value).strip()
     return value_str or None
 
+def extract_offer_type_from_html(html_text: str) -> Optional[str]:
+    """Пытается вытащить тип предложения из HTML лота."""
+    if not html_text:
+        return None
+    decoded = html.unescape(html_text)
+    patterns = (
+        r'"type_name"\s*:\s*"([^"]+)"',
+        r'"offer_type_name"\s*:\s*"([^"]+)"',
+        r'"offer_type"\s*:\s*"([^"]+)"',
+    )
+    for pattern in patterns:
+        match = re.search(pattern, decoded)
+        if match:
+            value = match.group(1).strip()
+            if value:
+                return value
+    return None
+
 def select_lot_type(lot_page_ru: Optional[LotPage], lot_page_en: Optional[LotPage], fallback: str) -> str:
     """Пытается получить корректный тип предложения из страницы лота."""
     candidates: list[Any] = []
+    equal_fallback = False
     for lot_page in (lot_page_ru, lot_page_en):
         if not lot_page:
             continue
+        for attr in ("html", "page_html", "text", "content"):
+            html_text = getattr(lot_page, attr, None)
+            if isinstance(html_text, str):
+                candidates.append(extract_offer_type_from_html(html_text))
         for attr in ("type", "offer_type", "lot_type", "type_name", "lot_type_name"):
             if hasattr(lot_page, attr):
                 candidates.append(getattr(lot_page, attr))
@@ -182,8 +206,13 @@ def select_lot_type(lot_page_ru: Optional[LotPage], lot_page_en: Optional[LotPag
                     candidates.append(fields["fields[type]"])
     for candidate in candidates:
         normalized = normalize_type_value(candidate)
-        if normalized:
+        if not normalized:
+            continue
+        if normalized != fallback:
             return normalized
+        equal_fallback = True
+    if equal_fallback:
+        return fallback
     return fallback
 
 def build_json_for_lot(acc: Account, lot: LotShortcut, cancel_event=None) -> dict:
