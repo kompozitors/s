@@ -17,7 +17,7 @@ from tg_bot import static_keyboards as skb
 
 
 NAME = "Foreign Lots Cache Plugin"
-VERSION = "0.1.6"
+VERSION = "0.1.7"
 DESCRIPTION = "Плагин для выгрузки лотов с чужих профилей в JSON файл."
 CREDITS = "@woopertail"
 UUID = "8a47950f-0ebc-4c0a-bb4d-d4c2dc3fcfe6"
@@ -120,78 +120,85 @@ def init_commands(cardinal: Cardinal):
             return ""
         return html.unescape(match.group(1)).strip()
 
-    def extract_json_block(html_text: str, key: str) -> dict:
+    def parse_attributes(tag: str) -> dict[str, str]:
+        attributes = {}
+        for match in re.finditer(r'([\w:-]+)\s*=\s*([\'"])(.*?)\2', tag, re.DOTALL):
+            attributes[match.group(1).lower()] = html.unescape(match.group(3)).strip()
+        return attributes
+
+    def extract_form_fields(html_text: str) -> dict[str, str]:
         unescaped_text = html.unescape(html_text)
-
-        def parse_object(start: int) -> dict:
-            depth = 0
-            in_string = False
-            escape = False
-            for pos in range(start, len(unescaped_text)):
-                char = unescaped_text[pos]
-                if in_string:
-                    if escape:
-                        escape = False
-                    elif char == "\\":
-                        escape = True
-                    elif char == '"':
-                        in_string = False
-                else:
-                    if char == '"':
-                        in_string = True
-                    elif char == "{":
-                        depth += 1
-                    elif char == "}":
-                        depth -= 1
-                        if depth == 0:
-                            block = unescaped_text[start : pos + 1]
-                            try:
-                                parsed = json.loads(block)
-                            except Exception:
-                                return {}
-                            if isinstance(parsed, dict):
-                                return parsed
-                            return {}
-            return {}
-
-        search_key = f'"{key}"'
-        offset = 0
-        while True:
-            index = unescaped_text.find(search_key, offset)
-            if index == -1:
-                return {}
-            colon = unescaped_text.find(":", index + len(search_key))
-            if colon == -1:
-                return {}
-            start = unescaped_text.find("{", colon)
-            if start == -1:
-                offset = index + len(search_key)
+        fields: dict[str, str] = {}
+        for tag in re.findall(r"<input[^>]*>", unescaped_text, re.IGNORECASE):
+            attrs = parse_attributes(tag)
+            name = attrs.get("name")
+            if not name:
                 continue
-            parsed = parse_object(start)
-            if parsed:
-                return parsed
-            offset = index + len(search_key)
+            input_type = attrs.get("type", "").lower()
+            if input_type in {"submit", "button", "image"}:
+                continue
+            if input_type in {"checkbox", "radio"}:
+                if "checked" not in tag.lower():
+                    continue
+                value = attrs.get("value") or "on"
+            else:
+                value = attrs.get("value", "")
+            fields[name] = value
 
-    def parse_offer_page(offer_id: int, html_text: str) -> dict:
-        data = {
+        for match in re.finditer(
+            r"<textarea[^>]*name=['\"](?P<name>[^'\"]+)['\"][^>]*>(?P<value>.*?)</textarea>",
+            unescaped_text,
+            re.IGNORECASE | re.DOTALL,
+        ):
+            fields[match.group("name")] = html.unescape(match.group("value")).strip()
+
+        for select in re.finditer(
+            r"<select[^>]*name=['\"](?P<name>[^'\"]+)['\"][^>]*>(?P<body>.*?)</select>",
+            unescaped_text,
+            re.IGNORECASE | re.DOTALL,
+        ):
+            name = select.group("name")
+            body = select.group("body")
+            selected = None
+            for option in re.finditer(
+                r"<option[^>]*value=['\"]?(?P<value>[^'\">]*)['\"]?[^>]*>(?P<label>.*?)</option>",
+                body,
+                re.IGNORECASE | re.DOTALL,
+            ):
+                option_tag = option.group(0).lower()
+                value = html.unescape(option.group("value")).strip()
+                label = html.unescape(option.group("label")).strip()
+                if "selected" in option_tag:
+                    selected = value or label
+                    break
+                if selected is None:
+                    selected = value or label
+            if selected is not None:
+                fields[name] = selected
+
+        if "form_created_at" not in fields:
+            fields["form_created_at"] = str(int(time.time()))
+        return fields
+
+    def parse_offer_page(offer_id: int, html_text: str) -> tuple[dict, dict]:
+        fields = extract_form_fields(html_text)
+        meta = {
             "offer_id": offer_id,
             "offer_url": f"https://funpay.com/lots/offer?id={offer_id}",
         }
-        data.update(extract_json_block(html_text, "offer"))
-        data.update(extract_json_block(html_text, "lot"))
         title = extract_meta(html_text, "og:title") or extract_meta(html_text, "title")
         description = extract_meta(html_text, "og:description") or extract_meta(html_text, "description")
         if title:
-            data.setdefault("title", title)
+            meta["title"] = title
         if description:
-            data.setdefault("description", description)
+            meta["description"] = description
         breadcrumbs = re.findall(r'class="breadcrumb-item"[^>]*>\\s*<a[^>]*>([^<]+)</a>', html_text)
         if breadcrumbs:
-            data.setdefault("category", html.unescape(breadcrumbs[-1]).strip())
+            meta["category"] = html.unescape(breadcrumbs[-1]).strip()
         price_match = re.search(r'data-sum="([0-9.,]+)"', html_text)
         if price_match:
-            data.setdefault("price", price_match.group(1))
-        return data
+            fields.setdefault("price", price_match.group(1))
+        return fields, meta
 
     def safe_findall(pattern: str, html_text: str) -> list[str]:
         try:
@@ -287,8 +294,8 @@ def init_commands(cardinal: Cardinal):
             while attempts:
                 try:
                     html_text = fetch_url(f"https://funpay.com/lots/offer?id={offer_id}")
-                    lot_data = parse_offer_page(offer_id, html_text)
-                    if not lot_matches_category(lot_data, category_filter):
+                    lot_data, meta = parse_offer_page(offer_id, html_text)
+                    if not lot_matches_category(meta, category_filter):
                         logger.info(
                             "[FOREIGN LOTS] Лот %s не соответствует фильтру категории.",
                             offer_id,
