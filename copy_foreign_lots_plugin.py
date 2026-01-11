@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import html
 import json
 import re
 import time
 from logging import getLogger
 from typing import TYPE_CHECKING, Iterable
-
-import FunPayAPI.types
 
 if TYPE_CHECKING:
     from cardinal import Cardinal
@@ -60,36 +59,20 @@ def normalize(value: object) -> str:
     return str(value).strip().lower()
 
 
-def category_values(lot: FunPayAPI.types.Lot) -> Iterable[str]:
-    sub = getattr(lot, "subcategory", None)
-    if not sub:
-        return []
+def category_values(lot_data: dict) -> Iterable[str]:
     values = []
-    for attr in ("name", "title", "full_name", "short_name"):
-        value = normalize(getattr(sub, attr, None))
-        if value:
-            values.append(value)
-    for attr in ("category_id", "id"):
-        value = normalize(getattr(sub, attr, None))
-        if value:
-            values.append(value)
-    cat = getattr(sub, "category", None)
-    if cat:
-        for attr in ("name", "title", "full_name", "short_name"):
-            value = normalize(getattr(cat, attr, None))
-            if value:
-                values.append(value)
-        value = normalize(getattr(cat, "id", None))
+    for key in ("category", "subcategory", "game", "section"):
+        value = normalize(lot_data.get(key))
         if value:
             values.append(value)
     return values
 
 
-def lot_matches_category(lot: FunPayAPI.types.Lot, category_filter: str) -> bool:
+def lot_matches_category(lot_data: dict, category_filter: str) -> bool:
     if not category_filter:
         return True
     target = normalize(category_filter)
-    for value in category_values(lot):
+    for value in category_values(lot_data):
         if target == value or target in value:
             return True
     return False
@@ -111,40 +94,111 @@ def init_commands(cardinal: Cardinal):
     tg = cardinal.telegram
     bot = cardinal.telegram.bot
 
-    def get_profile(tg_msg: Message, profile_id: int) -> FunPayAPI.types.UserProfile:
+    def fetch_url(url: str) -> str:
         attempts = 3
         while attempts:
             try:
-                profile = cardinal.account.get_user(profile_id)
-                return profile
+                response = cardinal.account.session.get(url, timeout=15)
+                response.raise_for_status()
+                response.encoding = response.apparent_encoding or "utf-8"
+                return response.text
             except Exception:
-                logger.error("[FOREIGN LOTS] Не удалось получить данные о профиле.")
+                logger.error(f"[FOREIGN LOTS] Не удалось получить данные по URL {url}.")
                 logger.debug("TRACEBACK", exc_info=True)
                 time.sleep(1)
                 attempts -= 1
-        bot.send_message(tg_msg.chat.id, "❌ Не удалось получить данные профиля.")
         raise Exception
 
-    def get_lots_info(
-        tg_msg: Message,
-        profile: FunPayAPI.types.UserProfile,
-        category_filter: str,
-    ) -> list[FunPayAPI.types.LotFields]:
+    def extract_meta(html_text: str, name: str) -> str:
+        pattern = re.compile(
+            rf'<meta[^>]+(?:property|name)="{re.escape(name)}"[^>]+content="([^"]+)"',
+            re.IGNORECASE,
+        )
+        match = pattern.search(html_text)
+        if not match:
+            return ""
+        return html.unescape(match.group(1)).strip()
+
+    def extract_json_block(html_text: str, key: str) -> dict:
+        index = html_text.find(f'"{key}":')
+        if index == -1:
+            return {}
+        start = html_text.find("{", index)
+        if start == -1:
+            return {}
+        depth = 0
+        in_string = False
+        escape = False
+        for pos in range(start, len(html_text)):
+            char = html_text[pos]
+            if in_string:
+                if escape:
+                    escape = False
+                elif char == "\\":
+                    escape = True
+                elif char == '"':
+                    in_string = False
+            else:
+                if char == '"':
+                    in_string = True
+                elif char == "{":
+                    depth += 1
+                elif char == "}":
+                    depth -= 1
+                    if depth == 0:
+                        block = html_text[start : pos + 1]
+                        try:
+                            return json.loads(block)
+                        except Exception:
+                            return {}
+        return {}
+
+    def parse_offer_page(offer_id: int, html_text: str) -> dict:
+        data = {
+            "offer_id": offer_id,
+            "offer_url": f"https://funpay.com/lots/offer?id={offer_id}",
+        }
+        data.update(extract_json_block(html_text, "offer"))
+        data.update(extract_json_block(html_text, "lot"))
+        title = extract_meta(html_text, "og:title") or extract_meta(html_text, "title")
+        description = extract_meta(html_text, "og:description") or extract_meta(html_text, "description")
+        if title:
+            data.setdefault("title", title)
+        if description:
+            data.setdefault("description", description)
+        breadcrumbs = re.findall(r'class="breadcrumb-item"[^>]*>\\s*<a[^>]*>([^<]+)</a>', html_text)
+        if breadcrumbs:
+            data.setdefault("category", html.unescape(breadcrumbs[-1]).strip())
+        price_match = re.search(r'data-sum="([0-9.,]+)"', html_text)
+        if price_match:
+            data.setdefault("price", price_match.group(1))
+        return data
+
+    def get_offer_ids(profile_id: int) -> list[int]:
+        profile_url = f"https://funpay.com/users/{profile_id}/"
+        html_text = fetch_url(profile_url)
+        ids = set(int(match) for match in re.findall(r"/lots/offer\\?id=(\\d+)", html_text))
+        return sorted(ids)
+
+    def get_lots_info(tg_msg: Message, profile_id: int, category_filter: str) -> list[dict]:
         result = []
-        for lot in profile.get_lots():
-            if lot.subcategory.type == FunPayAPI.types.SubCategoryTypes.CURRENCY:
-                continue
-            if not lot_matches_category(lot, category_filter):
-                continue
+        offer_ids = get_offer_ids(profile_id)
+        if not offer_ids:
+            bot.send_message(tg_msg.chat.id, "❌ Не удалось найти лоты у профиля.")
+            return result
+        for offer_id in offer_ids:
             attempts = 3
             while attempts:
                 try:
-                    lot_fields = cardinal.account.get_lot_fields(lot.id)
-                    result.append(lot_fields)
-                    logger.info(f"[FOREIGN LOTS] Получил данные о лоте {lot.id}.")
+                    html_text = fetch_url(f"https://funpay.com/lots/offer?id={offer_id}")
+                    lot_data = parse_offer_page(offer_id, html_text)
+                    if not lot_matches_category(lot_data, category_filter):
+                        break
+                    result.append(lot_data)
+                    logger.info(f"[FOREIGN LOTS] Получил данные о лоте {offer_id}.")
                     break
                 except Exception:
-                    logger.error(f"[FOREIGN LOTS] Не удалось получить данные о лоте {lot.id}.")
+                    logger.error(f"[FOREIGN LOTS] Не удалось получить данные о лоте {offer_id}.")
                     logger.debug("TRACEBACK", exc_info=True)
                     time.sleep(2)
                     attempts -= 1
@@ -152,7 +206,7 @@ def init_commands(cardinal: Cardinal):
                 bot.send_message(
                     tg_msg.chat.id,
                     "❌ Не удалось получить данные о "
-                    f"<a href=\"https://funpay.com/lots/offer?id={lot.id}\">лоте {lot.id}</a>. "
+                    f"<a href=\"https://funpay.com/lots/offer?id={offer_id}\">лоте {offer_id}</a>. "
                     "Пропускаю.",
                 )
                 time.sleep(1)
@@ -192,21 +246,15 @@ def init_commands(cardinal: Cardinal):
             settings["last_category"] = category_filter
             save_settings()
 
-            bot.send_message(m.chat.id, "Получаю данные о профиле...")
-            profile = get_profile(m, profile_id)
-
             bot.send_message(
                 m.chat.id,
                 "Получаю данные о лотах (это может занять кое-какое время (1 лот/сек))...",
             )
-            lots = get_lots_info(m, profile, category_filter)
+            lots = get_lots_info(m, profile_id, category_filter)
 
             result = []
-            for lot_fields in lots:
-                fields = dict(lot_fields.fields)
-                fields.pop("csrf_token", None)
-                fields.pop("offer_id", None)
-                result.append(fields)
+            for lot_data in lots:
+                result.append(lot_data)
 
             file_name = f"foreign_lots_{profile_id}.json"
             file_path = f"storage/cache/{file_name}"
