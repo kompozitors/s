@@ -17,7 +17,7 @@ from tg_bot import static_keyboards as skb
 
 
 NAME = "Foreign Lots Cache Plugin"
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 DESCRIPTION = "Плагин для выгрузки лотов с чужих профилей в JSON файл."
 CREDITS = "@woopertail"
 UUID = "8a47950f-0ebc-4c0a-bb4d-d4c2dc3fcfe6"
@@ -181,12 +181,16 @@ def init_commands(cardinal: Cardinal):
             r"offerId\"?\\s*:?\\s*(\\d+)",
             r"offer_id\"?\\s*:?\\s*(\\d+)",
             r"data-offer-id=\"(\\d+)\"",
-            r"\"offer\"\\s*:\\s*\\{.*?\"id\"\\s*:\\s*(\\d+)",
-            r"\"offers\"\\s*:\\s*\\[.*?\"id\"\\s*:\\s*(\\d+)",
+            r"\"offer\"\\s*:\\s*\\{[^}]*?\"id\"\\s*:\\s*(\\d+)",
+            r"\"offers\"\\s*:\\s*\\[[^\\]]*?\"id\"\\s*:\\s*(\\d+)",
         ]
         ids = set()
         for pattern in patterns:
-            matches = re.findall(pattern, html_text, re.DOTALL)
+            try:
+                matches = re.findall(pattern, html_text, re.DOTALL)
+            except re.error:
+                logger.exception("[FOREIGN LOTS] Ошибка регулярного выражения: %s.", pattern)
+                continue
             if matches:
                 logger.info(f"[FOREIGN LOTS] Найдено {len(matches)} совпадений по шаблону {pattern}.")
             for match in matches:
