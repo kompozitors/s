@@ -17,7 +17,7 @@ from tg_bot import static_keyboards as skb
 
 
 NAME = "Foreign Lots Cache Plugin"
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 DESCRIPTION = "Плагин для выгрузки лотов с чужих профилей в JSON файл."
 CREDITS = "@woopertail"
 UUID = "8a47950f-0ebc-4c0a-bb4d-d4c2dc3fcfe6"
@@ -174,10 +174,40 @@ def init_commands(cardinal: Cardinal):
             data.setdefault("price", price_match.group(1))
         return data
 
+    def extract_offer_ids(html_text: str) -> set[int]:
+        patterns = [
+            r"/lots/offer\\?id=(\\d+)",
+            r"offerId\"?\\s*:?\\s*(\\d+)",
+            r"offer_id\"?\\s*:?\\s*(\\d+)",
+            r"data-offer-id=\"(\\d+)\"",
+        ]
+        ids = set()
+        for pattern in patterns:
+            for match in re.findall(pattern, html_text):
+                try:
+                    ids.add(int(match))
+                except ValueError:
+                    continue
+        return ids
+
+    def get_profile_pages(profile_id: int) -> list[str]:
+        base_url = f"https://funpay.com/users/{profile_id}/"
+        html_text = fetch_url(base_url)
+        pages = {base_url}
+        page_matches = re.findall(rf"/users/{profile_id}/\\?page=(\\d+)", html_text)
+        for page in page_matches:
+            pages.add(f"{base_url}?page={page}")
+        return sorted(pages), html_text
+
     def get_offer_ids(profile_id: int) -> list[int]:
-        profile_url = f"https://funpay.com/users/{profile_id}/"
-        html_text = fetch_url(profile_url)
-        ids = set(int(match) for match in re.findall(r"/lots/offer\\?id=(\\d+)", html_text))
+        pages, first_html = get_profile_pages(profile_id)
+        ids = set()
+        ids.update(extract_offer_ids(first_html))
+        for page_url in pages:
+            if page_url.endswith("/"):
+                continue
+            html_text = fetch_url(page_url)
+            ids.update(extract_offer_ids(html_text))
         return sorted(ids)
 
     def get_lots_info(tg_msg: Message, profile_id: int, category_filter: str) -> list[dict]:
