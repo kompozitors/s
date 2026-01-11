@@ -208,26 +208,32 @@ def init_commands(cardinal: Cardinal):
 
     def get_offer_ids(profile_id: int) -> list[int]:
         logger.info(f"[FOREIGN LOTS] Ищу лоты профиля {profile_id}.")
-        pages, first_html = get_profile_pages(profile_id)
-        logger.info(f"[FOREIGN LOTS] Найдено страниц профиля: {len(pages)}.")
-        ids = set()
-        ids.update(extract_offer_ids(first_html))
-        for page_url in pages:
-            if page_url.endswith("/"):
-                continue
-            html_text = fetch_url(page_url)
-            ids.update(extract_offer_ids(html_text))
-        if not ids:
-            fallback_urls = [
-                f"https://funpay.com/users/{profile_id}/?page=1",
-                f"https://funpay.com/users/{profile_id}/?active=1",
-                f"https://funpay.com/users/{profile_id}/?show=active",
-            ]
-            for url in fallback_urls:
-                logger.info(f"[FOREIGN LOTS] Пробую дополнительную страницу профиля: {url}.")
-                html_text = fetch_url(url)
+        try:
+            pages, first_html = get_profile_pages(profile_id)
+            logger.info(f"[FOREIGN LOTS] Найдено страниц профиля: {len(pages)}.")
+            ids = set()
+            logger.info("[FOREIGN LOTS] Сканирую первую страницу профиля на ID лотов.")
+            ids.update(extract_offer_ids(first_html))
+            for page_url in pages:
+                if page_url.endswith("/"):
+                    continue
+                logger.info(f"[FOREIGN LOTS] Сканирую страницу профиля {page_url}.")
+                html_text = fetch_url(page_url)
                 ids.update(extract_offer_ids(html_text))
-        return sorted(ids)
+            if not ids:
+                fallback_urls = [
+                    f"https://funpay.com/users/{profile_id}/?page=1",
+                    f"https://funpay.com/users/{profile_id}/?active=1",
+                    f"https://funpay.com/users/{profile_id}/?show=active",
+                ]
+                for url in fallback_urls:
+                    logger.info(f"[FOREIGN LOTS] Пробую дополнительную страницу профиля: {url}.")
+                    html_text = fetch_url(url)
+                    ids.update(extract_offer_ids(html_text))
+            return sorted(ids)
+        except Exception:
+            logger.exception("[FOREIGN LOTS] Ошибка при поиске лотов профиля.")
+            return []
 
     def get_lots_info(tg_msg: Message, profile_id: int, category_filter: str) -> list[dict]:
         result = []
@@ -329,8 +335,7 @@ def init_commands(cardinal: Cardinal):
             bot.send_message(m.chat.id, "✅ Выгрузка лотов завершена!")
         except Exception:
             RUNNING = False
-            logger.error("[FOREIGN LOTS] Не удалось выгрузить лоты.")
-            logger.debug("TRACEBACK", exc_info=True)
+            logger.exception("[FOREIGN LOTS] Не удалось выгрузить лоты.")
             bot.send_message(m.chat.id, "❌ Не удалось выгрузить лоты.")
             return
 
