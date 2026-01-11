@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from html import unescape
+from html.parser import HTMLParser
 from os.path import exists
 from typing import TYPE_CHECKING
+from urllib.error import URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 import telebot
 
@@ -44,9 +49,130 @@ Callback для активации режима ожидания файла с �
 User-state: ожидается файл с лотами, полученного с помощью команды /cache_lots.
 """
 
+CBT_CACHE_LOTS_FROM_URL = "lots_copy_plugin.cache_from_url"
+"""
+Callback для активации режима ожидания ссылки на лот.
+
+User-state: ожидается ссылка на лот.
+"""
+
 settings = {
     "with_secrets": False
 }
+
+
+class LotHTMLParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.fields: dict[str, str] = {}
+        self.meta: dict[str, str] = {}
+        self.title = ""
+        self._textarea_name: str | None = None
+        self._textarea_chunks: list[str] = []
+        self._select_name: str | None = None
+        self._select_selected_value: str | None = None
+        self._in_option = False
+        self._option_selected = False
+        self._option_value = ""
+        self._option_chunks: list[str] = []
+        self._in_title = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_dict = {key: value for key, value in attrs}
+        if tag == "input":
+            name = attrs_dict.get("name")
+            if not name:
+                return
+            if name in {"csrf_token", "offer_id"}:
+                return
+            input_type = attrs_dict.get("type", "")
+            if input_type == "checkbox" and "checked" not in attrs_dict:
+                return
+            value = attrs_dict.get("value", "") or ""
+            self.fields[name] = unescape(value)
+        elif tag == "textarea":
+            name = attrs_dict.get("name")
+            if not name:
+                return
+            self._textarea_name = name
+            self._textarea_chunks = []
+        elif tag == "select":
+            name = attrs_dict.get("name")
+            if not name:
+                return
+            self._select_name = name
+            self._select_selected_value = None
+        elif tag == "option" and self._select_name:
+            self._in_option = True
+            self._option_selected = "selected" in attrs_dict
+            self._option_value = attrs_dict.get("value") or ""
+            self._option_chunks = []
+        elif tag == "meta":
+            key = attrs_dict.get("property") or attrs_dict.get("name")
+            content = attrs_dict.get("content")
+            if key and content:
+                self.meta[key] = unescape(content)
+        elif tag == "title":
+            self._in_title = True
+
+    def handle_data(self, data: str) -> None:
+        if self._textarea_name is not None:
+            self._textarea_chunks.append(data)
+        elif self._in_option:
+            self._option_chunks.append(data)
+        elif self._in_title:
+            self.title += data
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "textarea" and self._textarea_name is not None:
+            value = unescape("".join(self._textarea_chunks)).strip()
+            self.fields[self._textarea_name] = value
+            self._textarea_name = None
+            self._textarea_chunks = []
+        elif tag == "option" and self._in_option:
+            if self._option_selected:
+                option_text = unescape("".join(self._option_chunks)).strip()
+                self._select_selected_value = self._option_value or option_text
+            self._in_option = False
+            self._option_selected = False
+            self._option_value = ""
+            self._option_chunks = []
+        elif tag == "select" and self._select_name:
+            if self._select_selected_value is not None:
+                self.fields[self._select_name] = self._select_selected_value
+            self._select_name = None
+            self._select_selected_value = None
+        elif tag == "title":
+            self._in_title = False
+            self.title = self.title.strip()
+
+
+def parse_lot_html(html: str) -> dict[str, str]:
+    parser = LotHTMLParser()
+    parser.feed(html)
+    fields = dict(parser.fields)
+    fields.pop("csrf_token", None)
+    fields.pop("offer_id", None)
+
+    if "fields[name][ru]" not in fields:
+        title = parser.meta.get("og:title") or parser.title
+        if title:
+            fields["fields[name][ru]"] = title.strip()
+
+    if "fields[desc][ru]" not in fields:
+        desc = parser.meta.get("og:description") or parser.meta.get("description")
+        if desc:
+            fields["fields[desc][ru]"] = desc.strip()
+
+    if "fields[summary][ru]" not in fields:
+        summary_source = fields.get("fields[desc][ru]") or fields.get("fields[name][ru]")
+        if summary_source:
+            fields["fields[summary][ru]"] = summary_source.strip()
+
+    if "active" not in fields:
+        fields["active"] = "1"
+
+    return fields
 
 def download_file(tg, msg: Message, file_name: str = "temp_file.txt"):
     """
@@ -285,6 +411,67 @@ def init_commands(cardinal: Cardinal):
             bot.send_message("❌ Не удалось кэшировать лоты.")
             return
 
+    def act_cache_lots_from_url(m: Message):
+        """
+        Активирует режим ожидания ссылки на лот для кэширования.
+        """
+        if RUNNING:
+            bot.send_message(m.chat.id, "❌ Процесс копирования лотов уже начался! "
+                                        "Дождитесь конца текущего процесса или перезапустите бота.")
+            return
+        result = bot.send_message(m.chat.id, "Отправьте ссылку на лот FunPay, чтобы кэшировать его.",
+                                  reply_markup=skb.CLEAR_STATE_BTN())
+        tg.set_state(m.chat.id, result.id, m.from_user.id, CBT_CACHE_LOTS_FROM_URL)
+
+    def cache_lots_from_url(m: Message):
+        """
+        Кэширует лот по ссылке в файл и отправляет его в Telegram чат.
+        """
+        tg.clear_state(m.chat.id, m.from_user.id, True)
+        global RUNNING
+        if RUNNING:
+            bot.send_message(m.chat.id, "❌ Процесс копирования лотов уже начался! "
+                                        "Дождитесь конца текущего процесса или перезапустите бота.")
+            return
+        url = m.text.strip()
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            bot.send_message(m.chat.id, "❌ Неверный формат ссылки.")
+            return
+
+        RUNNING = True
+        try:
+            bot.send_message(m.chat.id, "⏬ Загружаю HTML лота...")
+            request = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urlopen(request, timeout=15) as response:
+                charset = response.headers.get_content_charset() or "utf-8"
+                html = response.read().decode(charset, errors="replace")
+
+            fields = parse_lot_html(html)
+            required_fields = ["fields[name][ru]", "fields[summary][ru]", "fields[desc][ru]", "price", "amount"]
+            missing_fields = [field for field in required_fields if not fields.get(field)]
+            if missing_fields:
+                missing = ", ".join(missing_fields)
+                bot.send_message(m.chat.id, f"❌ Не удалось распознать поля лота: {missing}.")
+                RUNNING = False
+                return
+
+            bot.send_message(m.chat.id, "Сохраняю данные о лоте в файл и отправляю сюда...")
+            with open("storage/cache/lots.json", "w", encoding="utf-8") as f:
+                f.write(json.dumps([fields], indent=4, ensure_ascii=False))
+            with open("storage/cache/lots.json", "r", encoding="utf-8") as f:
+                bot.send_document(m.chat.id, f)
+            RUNNING = False
+        except URLError:
+            RUNNING = False
+            bot.send_message(m.chat.id, "❌ Не удалось загрузить HTML по ссылке.")
+        except Exception:
+            RUNNING = False
+            logger.error("[LOTS COPY] Не удалось кэшировать лот по ссылке.")
+            logger.debug("TRACEBACK", exc_info=True)
+            bot.send_message(m.chat.id, "❌ Не удалось кэшировать лот по ссылке.")
+            return
+
     def act_create_lots(m: Message):
         """
         Активирует режим ожидания файла с лотами для создания лотов на текущем аккаунте.
@@ -357,6 +544,7 @@ def init_commands(cardinal: Cardinal):
     cardinal.add_telegram_commands(UUID, [
         ("copy_lots", "копирует активные лоты с текущего аккаунта на другой.", True),
         ("cache_lots", "кэширует активные лоты в файл", True),
+        ("cache_lots_from_url", "кэширует лот по ссылке в файл", True),
         ("create_lots", "создает лоты на текущем аккаунте", True),
         ("copy_with_secrets", "Копировать ли встроенную автовыдачу FunPay?", True)
     ])
@@ -364,6 +552,8 @@ def init_commands(cardinal: Cardinal):
     tg.msg_handler(act_copy_lots, commands=["copy_lots"])
     tg.msg_handler(copy_lots, func=lambda m: tg.check_state(m.chat.id, m.from_user.id, CBT_COPY_LOTS))
     tg.msg_handler(cache_lots, commands=["cache_lots"])
+    tg.msg_handler(act_cache_lots_from_url, commands=["cache_lots_from_url"])
+    tg.msg_handler(cache_lots_from_url, func=lambda m: tg.check_state(m.chat.id, m.from_user.id, CBT_CACHE_LOTS_FROM_URL))
     tg.msg_handler(act_create_lots, commands=["create_lots"])
     tg.msg_handler(copy_with_secrets, commands=["copy_with_secrets"])
     tg.file_handler(CBT_CREATE_LOTS, create_lots)
