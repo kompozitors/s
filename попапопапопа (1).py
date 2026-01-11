@@ -170,6 +170,18 @@ def extract_offer_type_from_html(html_text: str) -> Optional[str]:
     if not html_text:
         return None
     decoded = html.unescape(html_text)
+    label_patterns = (
+        r"Тип предложения</h5>\\s*<div[^>]*>([^<]+)</div>",
+        r"Offer type</h5>\\s*<div[^>]*>([^<]+)</div>",
+        r"Тип предложения</h5>\\s*<div[^>]*class=\"text-bold\"[^>]*>([^<]+)</div>",
+        r"Offer type</h5>\\s*<div[^>]*class=\"text-bold\"[^>]*>([^<]+)</div>",
+    )
+    for pattern in label_patterns:
+        match = re.search(pattern, decoded, re.IGNORECASE)
+        if match:
+            value = match.group(1).strip()
+            if value:
+                return value
     patterns = (
         r'"type_name"\s*:\s*"([^"]+)"',
         r'"offer_type_name"\s*:\s*"([^"]+)"',
