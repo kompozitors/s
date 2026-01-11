@@ -145,6 +145,47 @@ def get_cached_locale_data(acc: Account, lot_id: int, locale: str) -> Tuple[Opti
         # Восстановление исходной локали
         acc.locale = orig_locale
 
+def normalize_type_value(value: Any) -> Optional[str]:
+    """Нормализует значение поля type до строки или возвращает None."""
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple, set)):
+        if not value:
+            return None
+        value = next(iter(value))
+    if isinstance(value, dict):
+        for key in ("ru", "name", "title", "value"):
+            nested = value.get(key)
+            if nested:
+                value = nested
+                break
+        else:
+            return None
+    value_str = str(value).strip()
+    return value_str or None
+
+def select_lot_type(lot_page_ru: Optional[LotPage], lot_page_en: Optional[LotPage], fallback: str) -> str:
+    """Пытается получить корректный тип предложения из страницы лота."""
+    candidates: list[Any] = []
+    for lot_page in (lot_page_ru, lot_page_en):
+        if not lot_page:
+            continue
+        for attr in ("type", "offer_type", "lot_type", "type_name", "lot_type_name"):
+            if hasattr(lot_page, attr):
+                candidates.append(getattr(lot_page, attr))
+        for attr in ("fields", "offer_fields", "lot_fields"):
+            fields = getattr(lot_page, attr, None)
+            if isinstance(fields, dict):
+                if "type" in fields:
+                    candidates.append(fields["type"])
+                if "fields[type]" in fields:
+                    candidates.append(fields["fields[type]"])
+    for candidate in candidates:
+        normalized = normalize_type_value(candidate)
+        if normalized:
+            return normalized
+    return fallback
+
 def build_json_for_lot(acc: Account, lot: LotShortcut, cancel_event=None) -> dict:
     """Собирает информацию о лоте в обоих языках для экспорта в JSON."""
     # Проверка отмены
@@ -185,7 +226,8 @@ def build_json_for_lot(acc: Account, lot: LotShortcut, cancel_event=None) -> dic
     price_str = str(int(price_)) if price_ == int(price_) else str(price_)
     node_id = lot.subcategory.id if lot.subcategory else 0
     sc_name_ru = lot.subcategory.name if lot.subcategory else "???"
-    
+    lot_type = select_lot_type(lot_page_ru, lot_page_en, sc_name_ru)
+
     return {
         "query": "",
         "form_created_at": str(int(time.time())),
@@ -202,7 +244,7 @@ def build_json_for_lot(acc: Account, lot: LotShortcut, cancel_event=None) -> dic
         "fields[desc][en]": desc_en,
         "fields[payment_msg][ru]": "1", # Исправлено с пустого на "1"
         "fields[payment_msg][en]": "1", # Исправлено с пустого на "1"
-        "fields[type]": sc_name_ru
+        "fields[type]": lot_type
     }
 
 def process_lot(acc: Account, lot: LotShortcut, progress_queue: List[Dict], cancel_event=None) -> Optional[Dict]:
