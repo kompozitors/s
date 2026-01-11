@@ -195,6 +195,22 @@ def extract_offer_type_from_html(html_text: str) -> Optional[str]:
                 return value
     return None
 
+def fetch_offer_html(acc: Account, lot_id: int) -> Optional[str]:
+    """Получает HTML страницы оффера для парсинга типа предложения."""
+    url = f"https://funpay.com/lots/offer?id={lot_id}"
+    attempts = 3
+    while attempts:
+        try:
+            response = acc.session.get(url, timeout=15)
+            response.raise_for_status()
+            response.encoding = response.apparent_encoding or "utf-8"
+            return response.text
+        except Exception as e:
+            logger.warning(f"[Авто-Копирование] Ошибка загрузки HTML лота {lot_id}: {e}")
+            time.sleep(1)
+            attempts -= 1
+    return None
+
 def select_lot_type(lot_page_ru: Optional[LotPage], lot_page_en: Optional[LotPage], fallback: str) -> str:
     """Пытается получить корректный тип предложения из страницы лота."""
     candidates: list[Any] = []
@@ -268,6 +284,12 @@ def build_json_for_lot(acc: Account, lot: LotShortcut, cancel_event=None) -> dic
     node_id = lot.subcategory.id if lot.subcategory else 0
     sc_name_ru = lot.subcategory.name if lot.subcategory else "???"
     lot_type = select_lot_type(lot_page_ru, lot_page_en, sc_name_ru)
+    if lot_type == sc_name_ru:
+        offer_html = fetch_offer_html(acc, lot.id)
+        if offer_html:
+            parsed_type = extract_offer_type_from_html(offer_html)
+            if parsed_type:
+                lot_type = parsed_type
 
     return {
         "query": "",
