@@ -17,7 +17,7 @@ from tg_bot import static_keyboards as skb
 
 
 NAME = "Foreign Lots Cache Plugin"
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 DESCRIPTION = "Плагин для выгрузки лотов с чужих профилей в JSON файл."
 CREDITS = "@woopertail"
 UUID = "8a47950f-0ebc-4c0a-bb4d-d4c2dc3fcfe6"
@@ -189,12 +189,14 @@ def init_commands(cardinal: Cardinal):
 
     def extract_offer_ids(html_text: str) -> set[int]:
         patterns = [
-            r"/lots/offer\\?id=(\\d+)",
-            r"offerId\"?\\s*:?\\s*(\\d+)",
-            r"offer_id\"?\\s*:?\\s*(\\d+)",
-            r"data-offer-id=\"(\\d+)\"",
-            r"\"offer\"\\s*:\\s*\\{[^}]*?\"id\"\\s*:\\s*(\\d+)",
-            r"\"offers\"\\s*:\\s*\\[[^\\]]*?\"id\"\\s*:\\s*(\\d+)",
+            r"/lots/offer\?id=(\d+)",
+            r"/lots/offer/(\d+)",
+            r"offerId\"?\s*:?\s*(\d+)",
+            r"offer_id\"?\s*:?\s*(\d+)",
+            r"data-offer-id=\"(\d+)\"",
+            r"data-lot-id=\"(\d+)\"",
+            r"\"offer\"\s*:\s*\{[^}]*?\"id\"\s*:\s*(\d+)",
+            r"\"offers\"\s*:\s*\[[^\]]*?\"id\"\s*:\s*(\d+)",
         ]
         ids = set()
         for pattern in patterns:
