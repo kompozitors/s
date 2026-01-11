@@ -17,7 +17,7 @@ from tg_bot import static_keyboards as skb
 
 
 NAME = "Foreign Lots Cache Plugin"
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 DESCRIPTION = "Плагин для выгрузки лотов с чужих профилей в JSON файл."
 CREDITS = "@woopertail"
 UUID = "8a47950f-0ebc-4c0a-bb4d-d4c2dc3fcfe6"
@@ -101,6 +101,7 @@ def init_commands(cardinal: Cardinal):
                 response = cardinal.account.session.get(url, timeout=15)
                 response.raise_for_status()
                 response.encoding = response.apparent_encoding or "utf-8"
+                logger.info(f"[FOREIGN LOTS] Загружена страница {url} ({len(response.text)} символов).")
                 return response.text
             except Exception:
                 logger.error(f"[FOREIGN LOTS] Не удалось получить данные по URL {url}.")
@@ -180,27 +181,35 @@ def init_commands(cardinal: Cardinal):
             r"offerId\"?\\s*:?\\s*(\\d+)",
             r"offer_id\"?\\s*:?\\s*(\\d+)",
             r"data-offer-id=\"(\\d+)\"",
+            r"\"offer\"\\s*:\\s*\\{.*?\"id\"\\s*:\\s*(\\d+)",
+            r"\"offers\"\\s*:\\s*\\[.*?\"id\"\\s*:\\s*(\\d+)",
         ]
         ids = set()
         for pattern in patterns:
-            for match in re.findall(pattern, html_text):
+            matches = re.findall(pattern, html_text, re.DOTALL)
+            if matches:
+                logger.info(f"[FOREIGN LOTS] Найдено {len(matches)} совпадений по шаблону {pattern}.")
+            for match in matches:
                 try:
                     ids.add(int(match))
                 except ValueError:
                     continue
+        logger.info(f"[FOREIGN LOTS] Итого найдено {len(ids)} ID лотов на странице.")
         return ids
 
-    def get_profile_pages(profile_id: int) -> list[str]:
+    def get_profile_pages(profile_id: int) -> tuple[list[str], str]:
         base_url = f"https://funpay.com/users/{profile_id}/"
         html_text = fetch_url(base_url)
         pages = {base_url}
-        page_matches = re.findall(rf"/users/{profile_id}/\\?page=(\\d+)", html_text)
+        page_matches = re.findall(rf"/users/{profile_id}/\\?[^\"']*page=(\\d+)", html_text)
         for page in page_matches:
             pages.add(f"{base_url}?page={page}")
         return sorted(pages), html_text
 
     def get_offer_ids(profile_id: int) -> list[int]:
+        logger.info(f"[FOREIGN LOTS] Ищу лоты профиля {profile_id}.")
         pages, first_html = get_profile_pages(profile_id)
+        logger.info(f"[FOREIGN LOTS] Найдено страниц профиля: {len(pages)}.")
         ids = set()
         ids.update(extract_offer_ids(first_html))
         for page_url in pages:
@@ -208,13 +217,32 @@ def init_commands(cardinal: Cardinal):
                 continue
             html_text = fetch_url(page_url)
             ids.update(extract_offer_ids(html_text))
+        if not ids:
+            fallback_urls = [
+                f"https://funpay.com/users/{profile_id}/?page=1",
+                f"https://funpay.com/users/{profile_id}/?active=1",
+                f"https://funpay.com/users/{profile_id}/?show=active",
+            ]
+            for url in fallback_urls:
+                logger.info(f"[FOREIGN LOTS] Пробую дополнительную страницу профиля: {url}.")
+                html_text = fetch_url(url)
+                ids.update(extract_offer_ids(html_text))
         return sorted(ids)
 
     def get_lots_info(tg_msg: Message, profile_id: int, category_filter: str) -> list[dict]:
         result = []
+        logger.info(
+            "[FOREIGN LOTS] Запрос лотов профиля %s, фильтр категории: %s.",
+            profile_id,
+            category_filter or "нет",
+        )
         offer_ids = get_offer_ids(profile_id)
         if not offer_ids:
-            bot.send_message(tg_msg.chat.id, "❌ Не удалось найти лоты у профиля.")
+            bot.send_message(
+                tg_msg.chat.id,
+                "❌ Не удалось найти лоты у профиля. "
+                "Проверьте ID и попробуйте отправить ссылку на профиль.",
+            )
             return result
         for offer_id in offer_ids:
             attempts = 3
@@ -223,6 +251,10 @@ def init_commands(cardinal: Cardinal):
                     html_text = fetch_url(f"https://funpay.com/lots/offer?id={offer_id}")
                     lot_data = parse_offer_page(offer_id, html_text)
                     if not lot_matches_category(lot_data, category_filter):
+                        logger.info(
+                            "[FOREIGN LOTS] Лот %s не соответствует фильтру категории.",
+                            offer_id,
+                        )
                         break
                     result.append(lot_data)
                     logger.info(f"[FOREIGN LOTS] Получил данные о лоте {offer_id}.")
