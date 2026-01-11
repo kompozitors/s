@@ -17,7 +17,7 @@ from tg_bot import static_keyboards as skb
 
 
 NAME = "Foreign Lots Cache Plugin"
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 DESCRIPTION = "Плагин для выгрузки лотов с чужих профилей в JSON файл."
 CREDITS = "@woopertail"
 UUID = "8a47950f-0ebc-4c0a-bb4d-d4c2dc3fcfe6"
@@ -175,6 +175,18 @@ def init_commands(cardinal: Cardinal):
             data.setdefault("price", price_match.group(1))
         return data
 
+    def safe_findall(pattern: str, html_text: str) -> list[str]:
+        try:
+            regex = re.compile(pattern, re.DOTALL)
+        except re.error:
+            logger.exception("[FOREIGN LOTS] Ошибка компиляции регулярного выражения: %s.", pattern)
+            return []
+        try:
+            return regex.findall(html_text)
+        except re.error:
+            logger.exception("[FOREIGN LOTS] Ошибка поиска по регулярному выражению: %s.", pattern)
+            return []
+
     def extract_offer_ids(html_text: str) -> set[int]:
         patterns = [
             r"/lots/offer\\?id=(\\d+)",
@@ -186,11 +198,7 @@ def init_commands(cardinal: Cardinal):
         ]
         ids = set()
         for pattern in patterns:
-            try:
-                matches = re.findall(pattern, html_text, re.DOTALL)
-            except re.error:
-                logger.exception("[FOREIGN LOTS] Ошибка регулярного выражения: %s.", pattern)
-                continue
+            matches = safe_findall(pattern, html_text)
             if matches:
                 logger.info(f"[FOREIGN LOTS] Найдено {len(matches)} совпадений по шаблону {pattern}.")
             for match in matches:
