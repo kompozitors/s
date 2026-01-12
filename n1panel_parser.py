@@ -21,11 +21,12 @@ class Service:
     name: str
     type: str
     category: str
-    rate: str
+    price: str
     min: str
     max: str
     refill: bool
     cancel: bool
+    description: str
 
     @classmethod
     def from_api(cls, payload: dict[str, Any]) -> "Service":
@@ -34,11 +35,12 @@ class Service:
             name=str(payload.get("name", "")),
             type=str(payload.get("type", "")),
             category=str(payload.get("category", "")),
-            rate=str(payload.get("rate", "")),
+            price=str(payload.get("rate", "")),
             min=str(payload.get("min", "")),
             max=str(payload.get("max", "")),
             refill=bool(payload.get("refill")),
             cancel=bool(payload.get("cancel")),
+            description=str(payload.get("description", "")),
         )
 
     def to_text(self) -> str:
@@ -47,11 +49,12 @@ class Service:
             f"Name: {self.name}\n"
             f"Type: {self.type}\n"
             f"Category: {self.category}\n"
-            f"Rate: {self.rate}\n"
+            f"Price: {self.price}\n"
             f"Min: {self.min}\n"
             f"Max: {self.max}\n"
             f"Refill: {self.refill}\n"
             f"Cancel: {self.cancel}\n"
+            f"Description: {self.description}\n"
         )
 
 
@@ -86,7 +89,7 @@ def write_txt(services: list[Service], path: Path) -> None:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Fetch n1panel services and save them to JSON or text.",
+        description="Fetch n1panel services (including prices and descriptions) and save them to JSON or text.",
     )
     parser.add_argument("--api-key", required=True, help="API key from n1panel")
     parser.add_argument(
