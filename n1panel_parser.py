@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -91,7 +92,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Fetch n1panel services (including prices and descriptions) and save them to JSON or text.",
     )
-    parser.add_argument("--api-key", required=True, help="API key from n1panel")
+    parser.add_argument(
+        "--api-key",
+        default=os.environ.get("N1PANEL_API_KEY"),
+        help="API key from n1panel (or set N1PANEL_API_KEY)",
+    )
     parser.add_argument(
         "--format",
         choices=("json", "txt"),
@@ -108,6 +113,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    if not args.api_key:
+        raise SystemExit("Error: provide --api-key or set N1PANEL_API_KEY")
     services = fetch_services(args.api_key)
     output_path = Path(args.output or f"services.{args.format}")
     if args.format == "json":
