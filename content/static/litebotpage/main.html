@@ -1,0 +1,385 @@
+<style>
+    .button-container {
+        width: 180px;
+        margin-right: 14px;
+        margin-top: 10px;
+    }
+
+    .buttons {
+        margin-left: 20px;
+    }
+
+    .lb-settings-block {
+        font-size: 20px;
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .lb-input {
+        margin-bottom: 0.2em;
+        padding-left: 24px;
+        display: flex !important;
+        align-items: initial;
+    }
+
+    .lb-input label {
+        padding-left: 0px !important;
+        font-size: 18px;
+    }
+
+    .lb-input select {
+        font-size: 16px;
+    }
+
+    /* для элемента input c type="checkbox" */
+    .custom-checkbox>input {
+        position: absolute;
+        z-index: -1;
+        opacity: 0;
+    }
+
+    /* для элемента label, связанного с .custom-checkbox */
+    .custom-checkbox>span {
+        display: inline-flex;
+        align-items: center;
+        user-select: none;
+    }
+
+    /* создание в label псевдоэлемента before со следующими стилями */
+    .custom-checkbox>span::before {
+        content: '';
+        display: inline-block;
+        width: 1.2em;
+        height: 1.2em;
+        flex-shrink: 0;
+        flex-grow: 0;
+        border: 1px solid #adb5bd;
+        border-radius: 0.25em;
+        margin-right: 0.5em;
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: 50% 50%;
+    }
+
+    /* стили при наведении курсора на checkbox */
+    .custom-checkbox>input:not(:disabled):not(:checked)+span:hover::before {
+        border-color: #b3d7ff;
+    }
+
+    /* стили для активного чекбокса (при нажатии на него) */
+    .custom-checkbox>input:not(:disabled):active+span::before {
+        background-color: #b3d7ff;
+        border-color: #b3d7ff;
+    }
+
+    /* стили для чекбокса, находящегося в фокусе */
+    .custom-checkbox>input:focus+span::before {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    /* стили для чекбокса, находящегося в фокусе и не находящегося в состоянии checked */
+    .custom-checkbox>input:focus:not(:checked)+span::before {
+        border-color: #80bdff;
+    }
+
+    /* стили для чекбокса, находящегося в состоянии checked */
+    .custom-checkbox>input:checked+span::before {
+        border-color: #0b76ef;
+        background-color: #0b76ef;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23fff' d='M6.564.75l-3.59 3.612-1.538-1.55L0 4.26 2.974 7.25 8 2.193z'/%3e%3c/svg%3e");
+    }
+
+    /* стили для чекбокса, находящегося в состоянии disabled */
+    .custom-checkbox>input:disabled+span::before {
+        background-color: #e9ecef;
+    }
+
+    .btn-save {
+        margin-top: 10px;
+    }
+
+    .notification {
+        position: fixed;
+        z-index: 5000;
+        font-size: 1.1em;
+        padding: 0.8em 1em !important;
+        margin: 0;
+        white-space: pre-line;
+        right: 64.5px;
+        top: 20px;
+        width: 350px;
+    }
+
+    .anim-out {
+        animation: hideBlock 1s linear backwards;
+        animation-delay: 1s;
+        opacity: 0;
+    }
+
+    @keyframes hideBlock {
+        0% {
+            display: block;
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0;
+        }
+    }
+
+    .theme-select {
+        display: block;
+        cursor: pointer;
+        height: 38px;
+        padding: 8px 12px;
+        font-size: 14px;
+        line-height: 1.428571429;
+        background-image: none;
+        border: 1px solid;
+        border-radius: 4px;
+        -webkit-box-shadow: inset 0 1px 1px rgb(0 0 0 / 8%);
+        box-shadow: inset 0 1px 1px rgb(0 0 0 / 8%);
+        -webkit-transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+        -o-transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+        transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+    }
+
+    .theme-select option {
+        cursor: pointer;
+    }
+
+    /**
+    * Tooltip Styles
+    */
+
+    /* Add this attribute to the element that needs a tooltip */
+    [data-tooltip] {
+        position: relative;
+        z-index: 2;
+        cursor: help;
+    }
+
+    /* Hide the tooltip content by default */
+    [data-tooltip]:before,
+    [data-tooltip]:after {
+        visibility: hidden;
+        -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=0)";
+        filter: progid: DXImageTransform.Microsoft.Alpha(Opacity=0);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* Position tooltip above the element */
+    [data-tooltip]:before {
+        position: absolute;
+        bottom: 150%;
+        left: 50%;
+        margin-bottom: 5px;
+        margin-left: -99px;
+        padding: 7px;
+        width: 220px;
+        -webkit-border-radius: 3px;
+        -moz-border-radius: 3px;
+        border-radius: 3px;
+        background-color: #000;
+        background-color: hsla(0, 0%, 20%, 0.9);
+        color: #fff;
+        content: attr(data-tooltip);
+        text-align: center;
+        font-size: 14px;
+        line-height: 1.2;
+    }
+
+    /* Triangle hack to make tooltip look like a speech bubble */
+    [data-tooltip]:after {
+        position: absolute;
+        bottom: 150%;
+        left: 50%;
+        margin-left: -5px;
+        width: 0;
+        border-top: 5px solid #000;
+        border-top: 5px solid hsla(0, 0%, 20%, 0.9);
+        border-right: 5px solid transparent;
+        border-left: 5px solid transparent;
+        content: " ";
+        font-size: 0;
+        line-height: 0;
+    }
+
+    /* Show tooltip content on hover */
+    [data-tooltip]:hover:before,
+    [data-tooltip]:hover:after {
+        visibility: visible;
+        -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)";
+        filter: progid: DXImageTransform.Microsoft.Alpha(Opacity=100);
+        opacity: 1;
+    }
+
+    .question-img {
+        width: 18px;
+        margin-left: 5px;
+        vertical-align: initial;
+    }
+
+    .setting-img {
+        width: 18px;
+        margin-left: 5px;
+    }
+
+    .pointer {
+        cursor: pointer;
+    }
+
+    .modal {
+        top: 15%;
+    }
+
+    .review-modal {
+        position: fixed;
+        font-size: 16px;
+        bottom: 20px;
+        right: 20px;
+        width: 300px;
+        box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px;
+        font-family: Arial, sans-serif;
+        z-index: 1000;
+        padding: 15px;
+        border-width: 1px;
+        border-style: solid;
+        border-color: rgb(221, 221, 221);
+        border-image: initial;
+        border-radius: 8px;
+    }
+</style>
+
+<p class="lb-settings-block">⭐️ {settingTheme}:</p>
+<div class="lb-input checkbox">
+    <select class="theme-select js-theme-select">
+        <option value="light">{settingThemeLight}</option>
+        <option value="dark">{settingThemeDark}</option>
+        <option value="firewatch">{settingThemeFirewatch}</option>
+        <option value="red_moon">Red Moon</option>
+    </select>
+</div>
+
+<p class="lb-settings-block">📒 {settingOffers}:</p>
+<div class="lb-input checkbox">
+	<label class="custom-checkbox">
+		<input type="checkbox" class="LB" name="autoUp" id="autoUp">
+		<span>
+            {settingOfferAutoRaise}
+        </span>
+	</label>
+    <a data-tooltip="{settingOfferAutoRaiseDesc}" >
+        <img class="question-img" src="{imgQuestionSrc}" />
+    </a>
+</div>
+<div class="lb-input checkbox">
+	<label class="custom-checkbox">
+		<input type="checkbox" class="LB" name="viewSellersPromo" id="viewSellersPromo">
+		<span>
+            {settingViewSellersPromo}
+        </span>
+	</label>
+    <a data-tooltip="{settingViewSellersPromoDesc}" >
+        <img class="question-img" src="{imgQuestionSrc}" />
+    </a>
+</div>
+<div class="lb-input checkbox">
+	<label class="custom-checkbox">
+		<input type="checkbox" class="LB" name="customPrices" id="customPrices">
+		<span>
+            {settingExactPrice}
+        </span>
+	</label>
+    <a data-tooltip="{settingExactPriceDesc}" >
+        <img class="question-img" src="{imgQuestionSrc}" />
+    </a>
+</div>
+
+<p class="lb-settings-block">💲 Продажи:</p>
+<div class="lb-input checkbox">
+	<label class="custom-checkbox">
+		<input type="checkbox" class="LB" name="showSalesStats" id="showSalesStats">
+		<span>
+            Отображать статистику продаж
+        </span>
+	</label>
+    <a data-tooltip="Добавляет детальную статистику на страницу Продажи." >
+        <img class="question-img" src="{imgQuestionSrc}" />
+    </a>
+</div>
+
+<p class="lb-settings-block">🎶 {settingNotifications}:</p>
+<div class="lb-input checkbox">
+	<label class="custom-checkbox">
+		<input type="checkbox" class="LB" name="customNotify" id="customNotify">
+		<span>
+            {settingCustomNotification}
+        </span>
+	</label>
+    <a data-tooltip="{settingCustomNotificationDesc}" >
+        <img class="question-img" src="{imgQuestionSrc}" />
+    </a>
+</div>
+
+<p class="lb-settings-block">⚡️ {settingOther}:</p>
+<div class="lb-input checkbox">
+	<label class="custom-checkbox">
+        <input type="checkbox" class="LB" name="hideBalance" id="hideBalance">
+        <span>
+            {settingsHideBalance}
+        </span>
+    </label>
+    <a data-tooltip="{settingsHideBalanceDesc}" >
+        <img class="question-img" src="{imgQuestionSrc}" />
+    </a>
+</div>
+
+<p class="lb-settings-block">💬 Секретные чаты:</p>
+<div class="buttons">
+    <div class="button-container">
+        <a href="https://t.me/fplite" target="_blank">
+            <button type="button" class="btn btn-default">
+                {settingsChatLinkTitle}
+            </button>
+        </a>
+    </div>
+    <div class="button-container">
+        <a href="https://dsc.gg/funpaycom" target="_blank">
+            <button type="button" class="btn btn-default">
+                {settingsDiscordLinkTitle}
+            </button>
+        </a>
+    </div>
+    <div class="button-container">
+        <a href="https://t.me/FunPayComNews" target="_blank">
+            <button type="button" class="btn btn-default">
+                {settingsChannelLinkTitle}
+            </button>
+        </a>
+    </div>
+    <div class="button-container">
+        <a href="https://t.me/NightStrang6r" target="_blank">
+            <button type="button" class="btn btn-default">
+                {settingsHelpLinkTitle}
+            </button>
+        </a>
+    </div>
+</div>
+
+<p class="lb-settings-block">{settingReset}:</p>
+<div class="buttons">
+    <div class="button-container">
+        <button type="button" class="btn btn-default js-settings-reset">
+            {settingsReset}
+        </button>
+    </div>
+</div>
+
+<div class="offer review-modal">
+    <p>{settingsReviewTitle}</p>
+    <div>
+        <a href="https://chromewebstore.google.com/detail/funpay-lite-bot/amicfiagmpbgfiiopieeemlkblfeeeip/reviews" target="_blank" class="btn btn-primary btn-block">Оставить отзыв</a>
+    </div>
+</div>

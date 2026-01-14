@@ -1,0 +1,38 @@
+{
+   "action": {
+      "default_icon": "assets/logo.png"
+   },
+   "author": "NightStranger",
+   "background": {
+      "service_worker": "background/b.js"
+   },
+   "content_scripts": [ {
+      "css": [ "content/static/style.css" ],
+      "js": [ "content/c.js" ],
+      "matches": [ "https://*.funpay.com/*", "https://funpay.com/*", "https://funpay.freshdesk.com/*" ],
+      "run_at": "document_start"
+   } ],
+   "content_security_policy": {
+      "object-src": "self",
+      "script-src": "self"
+   },
+   "default_locale": "ru",
+   "description": "__MSG_extDescription__",
+   "homepage_url": "https://litefor.fun",
+   "host_permissions": [ "https://*.funpay.com/*", "https://funpay.com/*" ],
+   "icons": {
+      "128": "assets/logo.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgQFGSB+L4Ol7lz3V0JdRxaka+RY95DBgX93dUvuaLMagYfthqFa+ph5tJd81Aurrv2L7jrGPCF01ZKUDhSkasEIKJO2iNtbwn94uzp8btOcT2x/wHvo683nC4QsVK+yumM4XtTmZufP74tsvsN9gXkAZdTjq7QOMbyl+PJifvoPFuJ8WJhZeSGAlhdDcikc12t7KG6t4+2yFXzS52d0VKDZarWzibfylCj3HP7BObEkxK7mMiA7iQGjKeKId8Gf62b4L5jnEi+SPY7jC4AVrqaWVylW0PCxotfm+pnAlUJ0Q5+fP2f8jtX299y1NEbEMFrWzzOsLLmquGs04mhLoWQIDAQAB",
+   "manifest_version": 3,
+   "name": "__MSG_extName__",
+   "options_page": "content/static/litebotpage/redirect.html",
+   "permissions": [ "storage", "unlimitedStorage", "cookies", "offscreen", "alarms" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "0.4.6",
+   "web_accessible_resources": [ {
+      "extension_ids": [  ],
+      "matches": [ "https://funpay.com/*", "https://funpay.freshdesk.com/*" ],
+      "resources": [ "assets/*", "style/*", "content/*" ]
+   } ]
+}

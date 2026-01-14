@@ -1,0 +1,7 @@
+/*
+FunPay Lite Bot
+Copyright (c) 2022-2025 Leonid Tsaruk aka NightStranger
+Source style.css
+Build 346a8139-3827-4b6b-a715-7c02d91f725e
+*/
+.LB-version{font-size:15px;font-weight:400;margin-left:15px}@-webkit-keyframes wave{0%{-webkit-mask-position:150%}to{-webkit-mask-position:-50%}}#liteBotButton{font-weight:700;cursor:pointer;user-select:none;position:relative;display:inline-block}#liteBotButtonFireIcon{position:absolute;top:15px;left:-8px;width:16px;height:16px;user-drag:none;-webkit-user-drag:none}.lb-social{display:inline-block;float:right;position:absolute;z-index:101;right:250px}.lb-promo-offer-hightlight{color:#40b95a!important}.offer-promoted .lb-promo-offer-hightlight{display:none}@media (min-width: 1999px){.lb-social{right:230px}}@media (min-width: 990px) and (max-width: 1200px){.lb-social{right:130px}}@media (max-width: 990px){.lb-social{right:10px}}.LB-notification{position:fixed;z-index:5000;font-size:1.1em;padding:.8em 1em!important;margin:0;white-space:pre-line;right:64.5px;top:20px;width:350px}@keyframes hideBlock{0%{display:block;opacity:1}to{opacity:0}}.LB-notification-anim-out{animation:hideBlock 1s linear backwards;animation-delay:1s;opacity:0}.LB-notification-anim-out-long{animation:hideBlock 2s linear backwards;animation-delay:8s;opacity:0}

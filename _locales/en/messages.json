@@ -1,0 +1,206 @@
+{
+   "extDescription": {
+      "message": "💲 Dark theme, offers auto-boosting, sales statistics and other improvements for the FunPay marketplace"
+   },
+   "extName": {
+      "message": "FunPay Lite Bot"
+   },
+   "extSmallName": {
+      "message": "Lite Bot"
+   },
+   "raiseResponseHours": {
+      "message": "hour"
+   },
+   "raiseResponseMinutes": {
+      "message": "minute"
+   },
+   "raiseResponseSeconds": {
+      "message": "second"
+   },
+   "resetSettingsConfirm": {
+      "message": "Are you sure you want to reset settings?"
+   },
+   "salesMonthApril": {
+      "message": "April"
+   },
+   "salesMonthAugust": {
+      "message": "August"
+   },
+   "salesMonthDecember": {
+      "message": "December"
+   },
+   "salesMonthFebruary": {
+      "message": "February"
+   },
+   "salesMonthJanuary": {
+      "message": "January"
+   },
+   "salesMonthJuly": {
+      "message": "July"
+   },
+   "salesMonthJune": {
+      "message": "June"
+   },
+   "salesMonthMarch": {
+      "message": "March"
+   },
+   "salesMonthMay": {
+      "message": "May"
+   },
+   "salesMonthNovember": {
+      "message": "November"
+   },
+   "salesMonthOctober": {
+      "message": "October"
+   },
+   "salesMonthSeptember": {
+      "message": "September"
+   },
+   "settingCustomNotification": {
+      "message": "Custom notification sound"
+   },
+   "settingCustomNotificationDesc": {
+      "message": "Replaces the loud chat notification sound with the notification sound from VK."
+   },
+   "settingExactPrice": {
+      "message": "Exact price"
+   },
+   "settingExactPriceDesc": {
+      "message": "Adds fields to the lot editing window for entering the price displayed for both the seller and the buyer."
+   },
+   "settingNotifications": {
+      "message": "Notifications"
+   },
+   "settingOfferAutoRaise": {
+      "message": "Auto-raise offers"
+   },
+   "settingOfferAutoRaiseDesc": {
+      "message": "Automatically raises all your lots. Do not close your browser to work."
+   },
+   "settingOffers": {
+      "message": "Offers"
+   },
+   "settingOther": {
+      "message": "Other"
+   },
+   "settingReset": {
+      "message": "♻️ Reset"
+   },
+   "settingTheme": {
+      "message": "Theme"
+   },
+   "settingThemeDark": {
+      "message": "Dark"
+   },
+   "settingThemeFirewatch": {
+      "message": "Firewatch"
+   },
+   "settingThemeLight": {
+      "message": "Light"
+   },
+   "settingViewSellersPromo": {
+      "message": "Display promo-lot icons"
+   },
+   "settingViewSellersPromoDesc": {
+      "message": "Displays icons of all promotional lots in the offer table, even hidden ones."
+   },
+   "settingsChannelLinkTitle": {
+      "message": "Secret channel with updates 👀"
+   },
+   "settingsChatLinkTitle": {
+      "message": "Secret chat of sellers 🕵"
+   },
+   "settingsDiscordLinkTitle": {
+      "message": "Secret Discord server 👾"
+   },
+   "settingsHelpLinkTitle": {
+      "message": "Report a bug / Order development ⚒️"
+   },
+   "settingsHideBalance": {
+      "message": "Hide balance display"
+   },
+   "settingsHideBalanceDesc": {
+      "message": "It can be useful when you need to share the screen, but do not want to show the account balance."
+   },
+   "settingsNotSaved": {
+      "message": "❌ Failed to save"
+   },
+   "settingsReset": {
+      "message": "Reset settings"
+   },
+   "settingsReviewTitle": {
+      "message": "Your review will only take a minute, but it is priceless for us! ✨"
+   },
+   "settingsSaved": {
+      "message": "✔️ Saved"
+   },
+   "socialLinkDiscord": {
+      "message": "https://dsc.gg/funpaycom"
+   },
+   "socialLinkTelegram": {
+      "message": "https://t.me/fplite"
+   },
+   "stats24Hours": {
+      "message": "24 Hours"
+   },
+   "stats30Days": {
+      "message": "Month"
+   },
+   "stats365Days": {
+      "message": "Year"
+   },
+   "stats7Days": {
+      "message": "Week"
+   },
+   "statsAverageSalePrice": {
+      "message": "Average Sale Price"
+   },
+   "statsHeader": {
+      "message": "Statistics"
+   },
+   "statsHighestSale": {
+      "message": "Highest Sale"
+   },
+   "statsOrdersClosed": {
+      "message": "Closed"
+   },
+   "statsPendingConfirmation": {
+      "message": "Pending Confirmation"
+   },
+   "statsPopularCategory": {
+      "message": "Most Popular Category"
+   },
+   "statsPopularProduct": {
+      "message": "Most Popular Product"
+   },
+   "statsReturns": {
+      "message": "Returns"
+   },
+   "statsToday": {
+      "message": "Today"
+   },
+   "statsTopCustomer": {
+      "message": "Top Customer"
+   },
+   "statsTotalOrders": {
+      "message": "Total Orders"
+   },
+   "statsTotalTime": {
+      "message": "All Time"
+   },
+   "statsTotalrevenue": {
+      "message": "Total Revenue"
+   },
+   "statsUniqueCustomers": {
+      "message": "Unique Customers"
+   },
+   "statsUpdateButton": {
+      "message": "Update Data"
+   },
+   "statsUpdateButtonUpdating": {
+      "message": "Updating..."
+   },
+   "statsYesterday": {
+      "message": "Yesterday"
+   }
+}

@@ -1,0 +1,206 @@
+{
+   "extDescription": {
+      "message": "💲 Тёмная тема, автоподнятие предложений, статистика продаж и другие улучшения для торговой площадки FunPay"
+   },
+   "extName": {
+      "message": "FunPay Lite Bot"
+   },
+   "extSmallName": {
+      "message": "Lite Bot"
+   },
+   "raiseResponseHours": {
+      "message": "час"
+   },
+   "raiseResponseMinutes": {
+      "message": "минут"
+   },
+   "raiseResponseSeconds": {
+      "message": "секунд"
+   },
+   "resetSettingsConfirm": {
+      "message": "Вы уверены, что хотите сбросить настройки?"
+   },
+   "salesMonthApril": {
+      "message": "апреля"
+   },
+   "salesMonthAugust": {
+      "message": "августа"
+   },
+   "salesMonthDecember": {
+      "message": "декабря"
+   },
+   "salesMonthFebruary": {
+      "message": "февраля"
+   },
+   "salesMonthJanuary": {
+      "message": "января"
+   },
+   "salesMonthJuly": {
+      "message": "июля"
+   },
+   "salesMonthJune": {
+      "message": "июня"
+   },
+   "salesMonthMarch": {
+      "message": "марта"
+   },
+   "salesMonthMay": {
+      "message": "мая"
+   },
+   "salesMonthNovember": {
+      "message": "ноября"
+   },
+   "salesMonthOctober": {
+      "message": "октября"
+   },
+   "salesMonthSeptember": {
+      "message": "сентября"
+   },
+   "settingCustomNotification": {
+      "message": "Кастомный звук уведомления"
+   },
+   "settingCustomNotificationDesc": {
+      "message": "Заменяет звук громкого уведомления чата на звук уведомления из VK."
+   },
+   "settingExactPrice": {
+      "message": "Точная цена"
+   },
+   "settingExactPriceDesc": {
+      "message": "Добавляет в окно редактирования лотов поля для ввода цены, отображаемой как для продавца, так и для покупателя."
+   },
+   "settingNotifications": {
+      "message": "Уведомления"
+   },
+   "settingOfferAutoRaise": {
+      "message": "Автоподнятие предложений"
+   },
+   "settingOfferAutoRaiseDesc": {
+      "message": "Автоматически поднимает все ваши лоты. Для работы не закрывайте браузер."
+   },
+   "settingOffers": {
+      "message": "Предложения"
+   },
+   "settingOther": {
+      "message": "Прочее"
+   },
+   "settingReset": {
+      "message": "♻️ Сброс"
+   },
+   "settingTheme": {
+      "message": "Тема"
+   },
+   "settingThemeDark": {
+      "message": "Тёмная"
+   },
+   "settingThemeFirewatch": {
+      "message": "Firewatch"
+   },
+   "settingThemeLight": {
+      "message": "Светлая"
+   },
+   "settingViewSellersPromo": {
+      "message": "Отображать значки промо-лотов"
+   },
+   "settingViewSellersPromoDesc": {
+      "message": "Отображает все значки промо-лотов в таблице предложений, даже если они скрыты."
+   },
+   "settingsChannelLinkTitle": {
+      "message": "Секретный канал с обновлениями 👀"
+   },
+   "settingsChatLinkTitle": {
+      "message": "Секретный чат продавцов 🕵"
+   },
+   "settingsDiscordLinkTitle": {
+      "message": "Секретный сервер Discord 👾"
+   },
+   "settingsHelpLinkTitle": {
+      "message": "Сообщить об ошибке / Заказать разработку ⚒️"
+   },
+   "settingsHideBalance": {
+      "message": "Скрыть отображение баланса"
+   },
+   "settingsHideBalanceDesc": {
+      "message": "Бывает полезно, когда нужно продемонстрировать экран, но не хочется показывать баланс аккаунта."
+   },
+   "settingsNotSaved": {
+      "message": "❌ Не удалось сохранить"
+   },
+   "settingsReset": {
+      "message": "Сбросить настройки"
+   },
+   "settingsReviewTitle": {
+      "message": "Ваш отзыв займет всего минуту, а для нас он бесценен! ✨"
+   },
+   "settingsSaved": {
+      "message": "✔️ Сохранено"
+   },
+   "socialLinkDiscord": {
+      "message": "https://dsc.gg/funpaycom"
+   },
+   "socialLinkTelegram": {
+      "message": "https://t.me/fplite"
+   },
+   "stats24Hours": {
+      "message": "24 часа"
+   },
+   "stats30Days": {
+      "message": "Месяц"
+   },
+   "stats365Days": {
+      "message": "Год"
+   },
+   "stats7Days": {
+      "message": "Неделя"
+   },
+   "statsAverageSalePrice": {
+      "message": "Средний чек"
+   },
+   "statsHeader": {
+      "message": "Статистика"
+   },
+   "statsHighestSale": {
+      "message": "Самая дорогая продажа"
+   },
+   "statsOrdersClosed": {
+      "message": "Закрыто"
+   },
+   "statsPendingConfirmation": {
+      "message": "В ожидании подтверждения"
+   },
+   "statsPopularCategory": {
+      "message": "Самая популярная категория"
+   },
+   "statsPopularProduct": {
+      "message": "Самый популярный товар"
+   },
+   "statsReturns": {
+      "message": "Возвратов"
+   },
+   "statsToday": {
+      "message": "Сегодня"
+   },
+   "statsTopCustomer": {
+      "message": "Самый активный покупатель"
+   },
+   "statsTotalOrders": {
+      "message": "Всего заказов"
+   },
+   "statsTotalTime": {
+      "message": "Всё время"
+   },
+   "statsTotalrevenue": {
+      "message": "Всего заработано"
+   },
+   "statsUniqueCustomers": {
+      "message": "Уникальных покупателей"
+   },
+   "statsUpdateButton": {
+      "message": "Обновить данные"
+   },
+   "statsUpdateButtonUpdating": {
+      "message": "Обновление..."
+   },
+   "statsYesterday": {
+      "message": "Вчера"
+   }
+}
