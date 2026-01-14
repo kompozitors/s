@@ -6,9 +6,9 @@ import json
 import re
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
-from html.parser import HTMLParser
+from html import unescape
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List
 from urllib import parse, request
 
 
@@ -25,46 +25,22 @@ class Category:
     game_name: str
 
 
-class FunPayCategoryParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self._in_game_item = False
-        self._in_game_title = False
-        self._current_game_name: Optional[str] = None
-        self.categories: List[Category] = []
-
-    def handle_starttag(self, tag: str, attrs: List[tuple[str, Optional[str]]]) -> None:
-        attr_dict = dict(attrs)
-        class_value = attr_dict.get("class") or ""
-        classes = set(class_value.split())
-
-        if tag == "div" and "promo-game-item" in classes:
-            self._in_game_item = True
-            self._current_game_name = None
-
-        if self._in_game_item and tag == "div" and "game-title" in classes:
-            self._in_game_title = True
-
-        if self._in_game_item and tag == "a":
-            href = attr_dict.get("href") or ""
-            match = re.search(r"/(lots|chips)/(\d+)", href)
-            if match and self._current_game_name:
-                node_id = int(match.group(2))
-                self.categories.append(
-                    Category(node_id=node_id, game_name=self._current_game_name)
-                )
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "div" and self._in_game_title:
-            self._in_game_title = False
-        if tag == "div" and self._in_game_item and not self._in_game_title:
-            self._in_game_item = False
-
-    def handle_data(self, data: str) -> None:
-        if self._in_game_title:
-            cleaned = data.strip()
-            if cleaned:
-                self._current_game_name = cleaned
+PROMO_GAME_ITEM_RE = re.compile(
+    r'<div class="promo-game-item".*?>.*?</div>\s*</div>',
+    re.DOTALL,
+)
+GAME_TITLE_RE = re.compile(
+    r'<div class="game-title">\s*<a[^>]*>(?P<title>.*?)</a>',
+    re.DOTALL,
+)
+LIST_INLINE_RE = re.compile(
+    r'<ul class="list-inline"[^>]*data-id="(?P<game_id>\d+)"[^>]*>(?P<body>.*?)</ul>',
+    re.DOTALL,
+)
+NODE_LINK_RE = re.compile(
+    r'<a[^>]+href="[^"]+/(lots|chips)/(?P<node_id>\d+)"[^>]*>',
+    re.DOTALL,
+)
 
 
 def _quantize(value: Decimal, precision: int) -> Decimal:
@@ -73,15 +49,37 @@ def _quantize(value: Decimal, precision: int) -> Decimal:
 
 
 def fetch_html(url: str, *, timeout: float = 15.0) -> str:
-    with request.urlopen(url, timeout=timeout) as response:
+    req = request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; funpay-komka/1.0)",
+            "Accept": "text/html,application/xhtml+xml",
+        },
+    )
+    with request.urlopen(req, timeout=timeout) as response:
         return response.read().decode("utf-8")
+
+
+def parse_categories(html: str) -> List[Category]:
+    categories: List[Category] = []
+    for block in PROMO_GAME_ITEM_RE.findall(html):
+        title_match = GAME_TITLE_RE.search(block)
+        if not title_match:
+            continue
+        title = unescape(title_match.group("title").strip())
+        if not title:
+            continue
+        for list_match in LIST_INLINE_RE.finditer(block):
+            body = list_match.group("body")
+            for node_match in NODE_LINK_RE.finditer(body):
+                node_id = int(node_match.group("node_id"))
+                categories.append(Category(node_id=node_id, game_name=title))
+    return categories
 
 
 def fetch_categories() -> List[Category]:
     html = fetch_html("https://funpay.com")
-    parser = FunPayCategoryParser()
-    parser.feed(html)
-    return parser.categories
+    return parse_categories(html)
 
 
 def _parse_price(value: str) -> Decimal:
