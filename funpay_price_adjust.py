@@ -142,6 +142,43 @@ def _iter_node_ids(lots: Iterable[Dict[str, Any]]) -> List[int]:
     return sorted(set(node_ids))
 
 
+def _lot_label(lot: Dict[str, Any]) -> str:
+    for key in ("fields[summary][ru]", "fields[summary][en]", "summary", "title"):
+        value = lot.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return f"node_id {lot.get('node_id', 'unknown')}"
+
+
+def export_commissions(
+    lots: Iterable[Dict[str, Any]],
+    *,
+    commission_map: Dict[str, Decimal],
+    output: Path,
+    include_node_id: bool,
+) -> None:
+    lines: List[str] = []
+    seen: set[str] = set()
+    for lot in lots:
+        node_id = lot.get("node_id")
+        if node_id is None:
+            continue
+        node_key = str(node_id)
+        if node_key in seen:
+            continue
+        commission = commission_map.get(node_key)
+        if commission is None:
+            continue
+        label = _lot_label(lot)
+        if include_node_id:
+            lines.append(f"{label} | {commission}% | node_id={node_key}")
+        else:
+            lines.append(f"{label} | {commission}%")
+        seen.add(node_key)
+
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def _commission_base_price(currency: str) -> Decimal:
     return Decimal("100000") if currency == "RUB" else Decimal("1000")
 
@@ -200,6 +237,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-missing",
         action="store_true",
         help="Skip lots without known commission instead of failing",
+    )
+    parser.add_argument(
+        "--export-commissions",
+        type=Path,
+        default=None,
+        help="Write per-category commission list to a text file",
+    )
+    parser.add_argument(
+        "--export-with-node-id",
+        action="store_true",
+        help="Include node_id in exported commission list",
     )
     return parser
 
@@ -289,21 +337,30 @@ def main() -> None:
         fetch=args.fetch_commission,
     )
 
-    updated, missing = adjust_prices(
-        lots,
-        commission_map=commission_map,
-        mode=args.mode,
-        price_field=args.price_field,
-        precision=args.precision,
-        skip_missing=args.skip_missing,
-    )
+    if args.export_commissions:
+        export_commissions(
+            lots,
+            commission_map=commission_map,
+            output=args.export_commissions,
+            include_node_id=args.export_with_node_id,
+        )
+        print(f"Wrote commission list to {args.export_commissions}")
+    else:
+        updated, missing = adjust_prices(
+            lots,
+            commission_map=commission_map,
+            mode=args.mode,
+            price_field=args.price_field,
+            precision=args.precision,
+            skip_missing=args.skip_missing,
+        )
 
-    output = args.output or args.input
-    _dump_lots(output, lots)
+        output = args.output or args.input
+        _dump_lots(output, lots)
 
-    print(f"Updated lots: {updated}")
-    if missing:
-        print("Missing entries:", ", ".join(missing))
+        print(f"Updated lots: {updated}")
+        if missing:
+            print("Missing entries:", ", ".join(missing))
 
 
 if __name__ == "__main__":
